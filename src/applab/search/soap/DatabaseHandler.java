@@ -156,7 +156,6 @@ public class DatabaseHandler {
 		PreparedStatement selectStatement = buildSelectQuery(commandText);
 
 		// Pass the variables to the prepared statement
-		// selectStatement.setInt(1, 1);
 		selectStatement.setInt(1, 0);
 		selectStatement.setInt(2, 1);
 		selectStatement.setInt(3, categoryId);
@@ -195,7 +194,6 @@ public class DatabaseHandler {
 
 		// Pass the variables to the prepared statement
 		selectStatement.setString(1, userInput);
-		// selectStatement.setInt(2, 1);
 		selectStatement.setInt(2, 0);
 		selectStatement.setInt(3, 1);
 

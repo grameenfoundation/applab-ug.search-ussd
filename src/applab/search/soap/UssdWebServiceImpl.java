@@ -63,7 +63,6 @@ public class UssdWebServiceImpl implements UssdWebServiceInterface {
 
 			// Check if the request is for the first level of the menu
 			else if (request.userInput.equals(ROOT_USSD_MENU)) {
-
 				appResp = getTopLevelMenu(request);
 			} else {
 				appResp = getSelectedMenu(request);
