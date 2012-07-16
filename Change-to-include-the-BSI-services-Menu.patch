@@ -1,0 +1,174 @@
+diff --git a/src/applab/search/soap/DatabaseHandler.java b/src/applab/search/soap/DatabaseHandler.java
+index f60cf77..ae566e6 100644
+--- a/src/applab/search/soap/DatabaseHandler.java
++++ b/src/applab/search/soap/DatabaseHandler.java
+@@ -242,6 +242,45 @@
+         return rootMenu;
+     }
+ 
++    //Create Non Farmer Services Menu
++    public static UssdMenu createOtherRootMenu(Integer categoryId) throws Exception, SQLException {
++    	// Build select command to obtain content from table
++        StringBuilder commandText = new StringBuilder();
++        commandText.append("SELECT DISTINCT(SUBSTRING_INDEX(");
++        commandText.append(" TRIM(REPLACE(");
++        commandText.append(" keyword, ?");
++        commandText.append(",' ')), ' ', 1))");
++        commandText.append(" AS menuItem ");
++        commandText.append(" FROM keyword ");
++        commandText.append(" WHERE");
++        commandText.append(" categoryId = ? ");
++        commandText.append(" AND isdeleted = ? ");
++        commandText.append(" ORDER BY keyword ASC");
++
++        PreparedStatement selectStatement = buildSelectQuery(commandText);
++        
++
++        // Pass the variables to the prepared statement
++        selectStatement.setString(1, " ");
++        selectStatement.setInt(2, categoryId);
++        selectStatement.setInt(3, 0);
++
++        ResultSet rootMenuResource = selectStatement.executeQuery();
++        UssdMenu rootMenu = new UssdMenu();
++        try {
++            while (rootMenuResource.next()) {
++                rootMenu.addItem(rootMenuResource.getString(1).replace("_", " "));
++            }
++        }
++        catch (Exception e) {
++            logger.warning(e.getMessage());
++            e.printStackTrace();
++        }
++        connection.close();
++        return rootMenu;
++
++	}
++    
+     // Use category selected by user to get categoryId
+     public static Integer getCategoryIdFromName(String userInput) throws Exception {
+         int categoryId = 0;
+diff --git a/src/applab/search/soap/UssdWebServiceImpl.java b/src/applab/search/soap/UssdWebServiceImpl.java
+index a970c9a..de1e6ad 100644
+--- a/src/applab/search/soap/UssdWebServiceImpl.java
++++ b/src/applab/search/soap/UssdWebServiceImpl.java
+@@ -34,286 +34,309 @@
+ @WebService(endpointInterface = "applab.search.soap.UssdWebServiceInterface")
+ public class UssdWebServiceImpl implements UssdWebServiceInterface {
+ 
+-    @Resource
+-    private WebServiceContext context;
++	@Resource
++	private WebServiceContext context;
+ 
+-    private final static String ROOT_USSD_CODE = "*178#";
+-    private final static Logger logger = Logger.getLogger(UssdWebServiceImpl.class.getName());
+-    public int isCompleted = 0;
++	private final static String ROOT_USSD_CODE = "*178#";
++	private final static String FARMER_ROOT_USSD_CODE = "*178*1#";
++	private final static String BSI_ROOT_USSD_CODE = "*178*2#";
++	private final static Logger logger = Logger
++			.getLogger(UssdWebServiceImpl.class.getName());
++	public int isCompleted = 0;
+ 
+-            // Check if the request is for the first level of the menu
+-            else if (request.userInput.equals(ROOT_USSD_CODE)) {
+-                appResp = getRootMenu(request);
+-            }
++			// Check if the request is for the first level of the menu
++			else if (request.userInput.equals(FARMER_ROOT_USSD_CODE)
++					|| request.userInput.equals(BSI_ROOT_USSD_CODE)) {
+ 
+-            else {
+-                appResp = getSelectedMenu(request);
+-            }
++				appResp = getRootMenu(request);
+ 
+
+ 
+-    /**
+-     * Get first menu
+-     * 
+-     * @param request
+-     * @param db
+-     * @param appResp
+-     * @param responseToSubscriber
+-     * @param contentToSave
+-     * @param moreMenuToSave
+-     * @throws SQLException
+-     */
+-    public UssdResponse getRootMenu(UssdRequest request) throws Exception {
++			// Decide whether we need the back option
++			if (appResp.isMenu && (!appResp.isFirst)) {
++				appResp.responseToSubscriber += "\r\n0. Previous Page";
++			}
++		} catch (Exception e) {
++			logger.warning(e.getMessage());
++			appResp.responseToSubscriber = "Sorry, unable to service your request at this time.";
++			appResp.isMenu = false;
++		}
+ 
+-        // Mark response as a menu
+-        UssdResponse appResp = new UssdResponse();
+-        appResp.isFirst = true;
++		return appResp;
++	}
+ 
+-        // Obtain the active categories from the database
+-        UssdMenu rootMenu = DatabaseHandler.createRootMenu();
+-        rootMenu.setTitle("Farmer Services");
++	/**
++	 * Get first menu
++	 * 
++	 * @param request
++	 * @param db
++	 * @param appResp
++	 * @param responseToSubscriber
++	 * @param contentToSave
++	 * @param moreMenuToSave
++	 * @throws SQLException
++	 */
++	public UssdResponse getRootMenu(UssdRequest request) throws Exception {
+ 
+-        appResp.responseToSubscriber = rootMenu.getMenuStringForDisplay();
+-        isCompleted = 0;
+-        DatabaseHandler.logRequest(request, rootMenu, isCompleted);
+-        return appResp;
+-    }
++		// Mark response as a menu
++		UssdResponse appResp = new UssdResponse();
++		appResp.isFirst = true;
++		UssdMenu rootMenu = new UssdMenu();
+ 
+-    /**
+-     * Get other non-first menu
+-     * 
+-     * @param request
+-     * @param db
+-     * @param appResp
+-     * @param responseToSubscriber
+-     * @param contentToSave
+-     * @param menuToSave
+-     * @param moreMenuToSave
+-     * @throws SQLException
+-     * @throws NumberFormatException
+-     */
+-    public UssdResponse getSelectedMenu(UssdRequest request) throws Exception {
+-        UssdResponse appResp = new UssdResponse();
+ 
+-        // Get displayed menu
+-        UssdMenu displayedMenu = DatabaseHandler.getDisplayedMenu(request);
++		if (request.userInput.equals(FARMER_ROOT_USSD_CODE)) {
++			rootMenu = DatabaseHandler.createRootMenu();
++			rootMenu.setTitle("Farmer Services");
++		} else if (request.userInput.equals(BSI_ROOT_USSD_CODE)) {
++			// BSI Services categoryId is 59 in test and 77 in live.. Hard coded
++			// for now
++			Integer BSICategoryId = 77;
++			rootMenu = DatabaseHandler.createOtherRootMenu(BSICategoryId);
++			rootMenu.setTitle("BSI Services");
++		}
+ 
+
+ }
+\ No newline at end of file

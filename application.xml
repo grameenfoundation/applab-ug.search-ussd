@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+<properties>
+  <comment>Configuration information for applab servers</comment>
+
+  <!-- common settings between production and test server -->
+  
+  <!-- Surveys database configuration -->
+  <entry key="surveys-database-url">jdbc:mysql://localhost:3306/zebra</entry>
+  <entry key="surveys-username">zebra</entry>
+  <entry key="surveys-password">zebra</entry>
+
+  <!-- Search database configuration -->
+  <entry key="search-database-url">jdbc:mysql://ckwapps.applab.org:3306/ycppquiz</entry>
+  <entry key="search-username">reader</entry>
+  <entry key="search-password">r3ad3r12#</entry>
+
+  <!-- production settings, commented out for development -->
+  <!--
+  <entry key="host-url">http://ckwapps.applab.org:8888/zebra/</entry>
+  <entry key="surveys-reader-username">reader</entry>
+  <entry key="surveys-reader-password">r3ad3r12#</entry>
+  <entry key="search-reader-username">reader</entry>
+  <entry key="search-reader-password">r3ad3r12#</entry>
+  <entry key="salesforce-username">crmapi@applab.org</entry>
+  <entry key="salesforce-password">yoteam2010</entry>
+  <entry key="salesforce-token">7DsJf1XPYI877Ria4bmlQMcIO</entry>
+  <entry key="use-remote-database">false</entry>
+  <entry key="search-images-path">/var/www/vhosts/default/htdocs/search.images</entry>
+  <entry key="search-images-base-url">http://ckwapps.applab.org/search.images</entry>
+  -->
+
+  <!-- test server settings, enabled for development, remove for production deployment -->
+  <entry key="host-url">http://test.applab.org:8888/zebra/</entry>
+  <entry key="surveys-reader-username">zebra</entry>
+  <entry key="surveys-reader-password">zebra</entry>
+  <entry key="search-reader-username">ycppquiz</entry>
+  <entry key="search-reader-password">ycppquiz</entry>
+
+  <!-- Salesforce configuration -->
+  <entry key="salesforce-address">https://cs1.salesforce.com/services/Soap/c/18.0</entry>
+  <entry key="salesforce-username">crmapi@applab.org.ckwtest</entry>
+  <entry key="salesforce-password">yoteam2010</entry>
+  <entry key="salesforce-token">4nh9SErlTdv3LKEr0G7WxmMa0</entry>
+  
+  <!--  Allow to connect to the remote DB on the test server via http -->
+  <entry key="use-remote-database">true</entry>
+
+  <!-- Search images path. Putting it as an absolute path here so that we don't have to update/move it whenever we deploy a new search.server-->
+  <entry key="search-images-path">C:\Users\luke\eclipse-workspace\Search Server Test\src</entry>
+  <entry key="search-images-base-url">http://ckwapps.applab.org/search.images</entry>
+</properties>
