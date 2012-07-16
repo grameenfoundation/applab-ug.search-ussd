@@ -34,301 +34,344 @@ import applab.server.ApplabConfiguration;
 @WebService(endpointInterface = "applab.search.soap.UssdWebServiceInterface")
 public class UssdWebServiceImpl implements UssdWebServiceInterface {
 
-    private final static Logger logger = Logger.getLogger(UssdWebServiceImpl.class.getName());
+	private final static Logger logger = Logger
+			.getLogger(UssdWebServiceImpl.class.getName());
 
-    private final static String ROOT_USSD_MENU = "*178#";
+	private final static String ROOT_USSD_MENU = "*178#";
 
-    @Resource
-    private WebServiceContext context;
-    public int isCompleted = 0;
-    public int isTopLevel = 0;
-    public int BSICategoryId = 77;
+	@Resource
+	private WebServiceContext context;
+	public int isCompleted = 0;
+	public int isTopLevel = 0;
+	public int BSICategoryId = 77;
 
-    @Override
-    public UssdResponse handleUSSDRequest(UssdRequest request) {
+	@Override
+	public UssdResponse handleUSSDRequest(UssdRequest request) {
 
-        // Pick AppLabWebService context
-        ServletContext servletContext =
-                (ServletContext)context.getMessageContext().get(MessageContext.SERVLET_CONTEXT);
-        try {
-            ApplabConfiguration.initConfiguration(servletContext);
-        }
-        catch (NamingException e) {
-            e.printStackTrace();
-        }
-        return getResponse(request);
-    }
+		// Pick AppLabWebService context
+		ServletContext servletContext = (ServletContext) context
+				.getMessageContext().get(MessageContext.SERVLET_CONTEXT);
+		try {
+			ApplabConfiguration.initConfiguration(servletContext);
+		} catch (NamingException e) {
+			e.printStackTrace();
+		}
+		return getResponse(request);
+	}
 
-    /**
-     * @param request
-     * @param appResp
-     * @param db
-     */
-    public UssdResponse getResponse(UssdRequest request) {
-        UssdResponse appResp = new UssdResponse();
+	/**
+	 * @param request
+	 * @param appResp
+	 * @param db
+	 */
+	public UssdResponse getResponse(UssdRequest request) {
+		UssdResponse appResp = new UssdResponse();
 
-        try {
+		try {
 
-            // Check for valid user input
-            if (request.userInput.matches("[^0-9]")) {
-                appResp.responseToSubscriber = "Wrong input!!";
-                appResp.isMenu = false;
-                appResp.isFirst = true;
-            }
+			// Check for valid user input
+			if (request.userInput.matches("[^0-9]")) {
+				appResp.responseToSubscriber = "Wrong input!!";
+				appResp.isMenu = false;
+				appResp.isFirst = true;
+			}
 
-            // Check if the request is for the first level of the menu
-            // Check if the request is for the first level of the menu
-            else if (request.userInput.equals(ROOT_USSD_MENU)) {
+			// Check if the request is for the first level of the menu
+			else if (request.userInput.equals(ROOT_USSD_MENU)) {
+				appResp = getTopLevelMenu(request);
+			} else {
+				appResp = getSelectedMenu(request);
+			}
 
-                appResp = getTopLevelMenu(request);
-            }
-            else {
-                appResp = getSelectedMenu(request);
-            }
+			// Decide whether we need the back option
+			if (appResp.isMenu && (!appResp.isFirst) && (isTopLevel != 1)) {
+				appResp.responseToSubscriber += "\r\n0. Previous Page";
+			}
+		} catch (Exception e) {
+			logger.warning(e.getMessage());
+			appResp.responseToSubscriber = "Sorry, unable to service your request at this time.";
+			appResp.isMenu = false;
+		}
 
-            // Decide whether we need the back option
-            if (appResp.isMenu && (!appResp.isFirst) && (isTopLevel != 1)) {
-                appResp.responseToSubscriber += "\r\n0. Previous Page";
-            }
-        }
-        catch (Exception e) {
-            logger.warning(e.getMessage());
-            appResp.responseToSubscriber = "Sorry, unable to service your request at this time.";
-            appResp.isMenu = false;
-        }
+		return appResp;
+	}
 
-        return appResp;
-    }
+	/**
+	 * Get first menu
+	 * 
+	 * @param request
+	 * @param db
+	 * @param appResp
+	 * @param responseToSubscriber
+	 * @param contentToSave
+	 * @param moreMenuToSave
+	 * @throws SQLException
+	 */
+	public UssdResponse getTopLevelMenu(UssdRequest request) throws Exception {
 
-    /**
-     * Get first menu
-     * 
-     * @param request
-     * @param db
-     * @param appResp
-     * @param responseToSubscriber
-     * @param contentToSave
-     * @param moreMenuToSave
-     * @throws SQLException
-     */
-    public UssdResponse getRootMenu(UssdRequest request) throws Exception {
+		// Mark response as a menu
+		UssdResponse appResp = new UssdResponse();
+		appResp.isFirst = true;
+		isTopLevel = 1;
+		UssdMenu rootMenu = new UssdMenu();
 
-        // Mark response as a menu
-        UssdResponse appResp = new UssdResponse();
-        appResp.isFirst = true;
+		// Display top level categories
+		if (request.userInput.equals(ROOT_USSD_MENU)) {
+			rootMenu.addItem("Farmer Services");
+			rootMenu.addItem("Budget Services");
+			rootMenu.setTitle("Grameen Services");
+		}
 
-        // Obtain the active categories from the database
-        UssdMenu rootMenu = DatabaseHandler.createRootMenu();
-        rootMenu.setTitle("Farmer Services");
+		appResp.responseToSubscriber = rootMenu.getMenuStringForDisplay();
+		isCompleted = 0;
+		DatabaseHandler.logRequest(request, rootMenu, isCompleted);
+		return appResp;
+	}
 
-        appResp.responseToSubscriber = rootMenu.getMenuStringForDisplay();
-        isCompleted = 0;
-        DatabaseHandler.logRequest(request, rootMenu, isCompleted);
-        return appResp;
-    }
+	public UssdResponse getNextMenu(UssdRequest request, UssdMenu previousMenu)
+			throws Exception {
+		isCompleted = 0;
+		UssdResponse appResp = new UssdResponse();
 
-    public UssdResponse getTopLevelMenu(UssdRequest request) throws Exception {
+		// Get the meaning of the user's input & the categoryId
+		String selectedItem = previousMenu.getItem(Integer
+				.parseInt(request.userInput) - 1);
+		Integer categoryId = previousMenu.getCategoryId();
+		if (categoryId == 0) {
+			if (isTopLevel == 1) {
+				UssdMenu rootMenu = new UssdMenu();
+				if (selectedItem.equalsIgnoreCase("Farmer Services")) {
+					rootMenu = DatabaseHandler.createRootMenu();
+					rootMenu.setTitle("Farmer Services");
+					isTopLevel = 0;
+				} else if (selectedItem.equalsIgnoreCase("Budget Services")) {
+					rootMenu = DatabaseHandler
+							.createOtherRootMenu(BSICategoryId);
+					rootMenu.setTitle("Budget Services");
+					isTopLevel = 0;
+				}
 
-        // Mark response as a menu
-        UssdResponse appResp = new UssdResponse();
-        appResp.isFirst = true;
-        isTopLevel = 1;
-        UssdMenu rootMenu = new UssdMenu();
+				appResp.responseToSubscriber = rootMenu
+						.getMenuStringForDisplay();
+				isCompleted = 0;
+				DatabaseHandler.logRequest(request, rootMenu, isCompleted);
+				return appResp;
+			} else {
 
-        // Display top level categories
-        if (request.userInput.equals(ROOT_USSD_MENU)) {
-            rootMenu.addItem("Farmer Services");
-            rootMenu.addItem("Budget Services");
-            rootMenu.setTitle("Grameen Services");
-        }
+				// This was the first menu, so we get the categoryId from the
+				// user's
+				// input
+				selectedItem = selectedItem.replace(" ", "_");
+				categoryId = DatabaseHandler
+						.getCategoryIdFromName(selectedItem);
+				selectedItem = selectedItem.replace("_", " ");
 
-        appResp.responseToSubscriber = rootMenu.getMenuStringForDisplay();
-        isCompleted = 0;
-        DatabaseHandler.logRequest(request, rootMenu, isCompleted);
-        return appResp;
-    }
+			}
+		} else {
 
-    /**
-     * Get other non-first menu
-     * 
-     * @param request
-     * @param db
-     * @param appResp
-     * @param responseToSubscriber
-     * @param contentToSave
-     * @param menuToSave
-     * @param moreMenuToSave
-     * @throws SQLException
-     * @throws NumberFormatException
-     */
-    public UssdResponse getSelectedMenu(UssdRequest request) throws Exception {
-        UssdResponse appResp = new UssdResponse();
+			// Get the new breadcrumb
+			previousMenu.addPathToBreadCrumb(selectedItem);
+		}
+		UssdMenu currentMenu = DatabaseHandler.getRequestedMenu(
+				previousMenu.getBreadCrumb(), categoryId);
 
-        // Get displayed menu
-        UssdMenu displayedMenu = DatabaseHandler.getDisplayedMenu(request);
+		// Set the title
+		currentMenu.setTitle(selectedItem);
+		if (currentMenu.getItemCount() == 0) {
 
-        // If the input was 9, just show the next page of the previous menu
-        if (request.userInput.equals("9")) {
-            appResp = getNextPage(request, displayedMenu);
-        }
-        else if (request.userInput.equals("0")) {
+			// Then end of keyword is implied and we return content instead
+			appResp = getContent(request, currentMenu.getBreadCrumb(),
+					categoryId);
 
-            // The input was 0, so we need to go back
-            if (displayedMenu.getPage() == 1) {
+			// Indicate end of ussd request process
+			isCompleted = 1;
+		} else {
+			appResp.responseToSubscriber = currentMenu
+					.getMenuStringForDisplay();
+		}
+		DatabaseHandler.logRequest(request, currentMenu, isCompleted);
+		return appResp;
+	}
 
-                // Go to the menu before this one (the parent menu)
-                appResp = getPreviousMenu(request, displayedMenu);
-            }
-            else {
+	/**
+	 * Get other non-first menu
+	 * 
+	 * @param request
+	 * @param db
+	 * @param appResp
+	 * @param responseToSubscriber
+	 * @param contentToSave
+	 * @param menuToSave
+	 * @param moreMenuToSave
+	 * @throws SQLException
+	 * @throws NumberFormatException
+	 */
+	public UssdResponse getSelectedMenu(UssdRequest request) throws Exception {
+		UssdResponse appResp = new UssdResponse();
 
-                // Just go to the previous page of this menu
-                appResp = getPreviousPage(request, displayedMenu);
-            }
-        }
-        else {
-            appResp = getNextMenu(request, displayedMenu);
-        }
-        return appResp;
-    }
+		// Get displayed menu
+		UssdMenu displayedMenu = DatabaseHandler.getDisplayedMenu(request);
 
-    /**
-     * Use the previous menu to build the content for the previously displayed page
-     * 
-     * @param request
-     * @param db
-     * @param appResp
-     * @param previousMenu
-     * @throws SQLException
-     */
-    public UssdResponse getPreviousPage(UssdRequest request, UssdMenu previousMenu) throws Exception {
-        isCompleted = 0;
-        UssdResponse appResp = new UssdResponse();
-        previousMenu.setPage(previousMenu.getPage() - 1);
-        appResp.responseToSubscriber = previousMenu.getMenuStringForDisplay();
-        DatabaseHandler.logRequest(request, previousMenu, isCompleted);
-        return appResp;
-    }
+		// If the input was 9, just show the next page of the previous menu
+		if (request.userInput.equals("9")) {
+			appResp = getNextPage(request, displayedMenu);
+		} else if (request.userInput.equals("0")) {
 
-    /**
-     * Use the previous menu to build the content for the next page
-     * 
-     * @param request
-     * @param db
-     * @param appResp
-     * @param previousMenu
-     * @throws SQLException
-     */
-    public UssdResponse getNextPage(UssdRequest request, UssdMenu previousMenu) throws Exception {
-        isCompleted = 0;
-        UssdResponse appResp = new UssdResponse();
-        previousMenu.setPage(previousMenu.getPage() + 1);
-        appResp.responseToSubscriber = previousMenu.getMenuStringForDisplay();
-        DatabaseHandler.logRequest(request, previousMenu, isCompleted);
-        return appResp;
-    }
+			// The input was 0, so we need to go backF
+			if (displayedMenu.getPage() == 1) {
 
-    /**
-     * Use the previous menu content to build the next menu when userinput is 9(more) on the last or only page of a
-     * menu.
-     * 
-     * @param request
-     * @param db
-     * @param appResp
-     * @param previousMenu
-     * @return
-     * @throws NumberFormatException
-     * @throws SQLException
-     */
-    // Use the previous menu to build the content for the previous menu
-    private UssdResponse getPreviousMenu(UssdRequest request,
-                                         UssdMenu displayedMenu) throws Exception {
-        UssdResponse appResp = new UssdResponse();
-        isCompleted = 0;
-        UssdMenu previousMenu = new UssdMenu();
+				// Go to the menu before this one (the parent menu)
+				appResp = getPreviousMenu(request, displayedMenu);
+			} else {
 
-        // Get the breadcrumb, and knock off a portion
-        String breadCrumb = displayedMenu.getBreadCrumb();
-        String[] parts = breadCrumb.split(" ");
+				// Just go to the previous page of this menu
+				appResp = getPreviousPage(request, displayedMenu);
+			}
+		} else {
+			appResp = getNextMenu(request, displayedMenu);
+		}
+		return appResp;
+	}
 
-        if (breadCrumb == "") {
+	/**
+	 * Use the previous menu to build the content for the previously displayed
+	 * page
+	 * 
+	 * @param request
+	 * @param db
+	 * @param appResp
+	 * @param previousMenu
+	 * @throws SQLException
+	 */
+	public UssdResponse getPreviousPage(UssdRequest request,
+			UssdMenu previousMenu) throws Exception {
+		isCompleted = 0;
+		UssdResponse appResp = new UssdResponse();
+		previousMenu.setPage(previousMenu.getPage() - 1);
+		appResp.responseToSubscriber = previousMenu.getMenuStringForDisplay();
+		DatabaseHandler.logRequest(request, previousMenu, isCompleted);
+		return appResp;
+	}
 
-            if (displayedMenu.getCategoryId() != 0) {
-                if (displayedMenu.getCategoryId() == BSICategoryId) {
-                    previousMenu = DatabaseHandler
-                            .createOtherRootMenu(BSICategoryId);
-                    previousMenu.setTitle("Budget Services");
-                    isTopLevel = 0;
-                    appResp.responseToSubscriber = previousMenu
-                            .getMenuStringForDisplay();
-                }
-                else {
-                    previousMenu = DatabaseHandler.createRootMenu();
-                    previousMenu.setTitle("Farmer Services");
-                    isTopLevel = 0;
-                    appResp.responseToSubscriber = previousMenu
-                            .getMenuStringForDisplay();
-                }
+	/**
+	 * Use the previous menu to build the content for the next page
+	 * 
+	 * @param request
+	 * @param db
+	 * @param appResp
+	 * @param previousMenu
+	 * @throws SQLException
+	 */
+	public UssdResponse getNextPage(UssdRequest request, UssdMenu previousMenu)
+			throws Exception {
+		isCompleted = 0;
+		UssdResponse appResp = new UssdResponse();
+		previousMenu.setPage(previousMenu.getPage() + 1);
+		appResp.responseToSubscriber = previousMenu.getMenuStringForDisplay();
+		DatabaseHandler.logRequest(request, previousMenu, isCompleted);
+		return appResp;
+	}
 
-            }
-            else {
-                request.userInput = ROOT_USSD_MENU;
-                return getTopLevelMenu(request);
-            }
-        }
-        else {
-            String previousBreadCrumb = "";
+	/**
+	 * Use the previous menu content to build the next menu when userinput is
+	 * 9(more) on the last or only page of a menu.
+	 * 
+	 * @param request
+	 * @param db
+	 * @param appResp
+	 * @param previousMenu
+	 * @return
+	 * @throws NumberFormatException
+	 * @throws SQLException
+	 */
+	// Use the previous menu to build the content for the previous menu
+	private UssdResponse getPreviousMenu(UssdRequest request,
+			UssdMenu displayedMenu) throws Exception {
+		UssdResponse appResp = new UssdResponse();
+		isCompleted = 0;
+		UssdMenu previousMenu = new UssdMenu();
 
-            // Join but leave last portion off
-            for (int counter = 0; counter < parts.length - 1; counter++) {
-                if (counter > 0) {
-                    previousBreadCrumb += " ";
-                }
-                previousBreadCrumb += parts[counter];
-            }
+		// Get the breadcrumb, and knock off a portion
+		String breadCrumb = displayedMenu.getBreadCrumb();
+		String[] parts = breadCrumb.split(" ");
 
-            previousMenu = DatabaseHandler.getRequestedMenu(previousBreadCrumb,
-                    displayedMenu.getCategoryId());
+		if (breadCrumb == "") {
 
-            // Set the title
-            if (parts.length > 1) {
-                previousMenu
-                        .setTitle(parts[parts.length - 1].replace("_", " "));
-            }
-            else {
-                previousMenu.setTitle(DatabaseHandler.getCategoryNameFromId(
-                        displayedMenu.getCategoryId()).replace("_", " "));
-            }
+			if (displayedMenu.getCategoryId() != 0) {
+				if (displayedMenu.getCategoryId() == BSICategoryId) {
+					previousMenu = DatabaseHandler
+							.createOtherRootMenu(BSICategoryId);
+					previousMenu.setTitle("Budget Services");
+					isTopLevel = 0;
+					appResp.responseToSubscriber = previousMenu
+							.getMenuStringForDisplay();
+				} else {
+					previousMenu = DatabaseHandler.createRootMenu();
+					previousMenu.setTitle("Farmer Services");
+					isTopLevel = 0;
+					appResp.responseToSubscriber = previousMenu
+							.getMenuStringForDisplay();
+				}
 
-            appResp.responseToSubscriber = previousMenu
-                    .getMenuStringForDisplay();
-        }
-        DatabaseHandler.logRequest(request, previousMenu, isCompleted);
-        return appResp;
-    }
+			} else {
+				request.userInput = ROOT_USSD_MENU;
+				return getTopLevelMenu(request);
+			}
+		} else {
+			String previousBreadCrumb = "";
 
-    // Obtain content to format and send as SMS
-    private UssdResponse getContent(UssdRequest request, String breadCrumb, Integer categoryId) throws Exception {
-        UssdResponse response = new UssdResponse();
-        response.isMenu = false;
-        String responseText = DatabaseHandler.getContent(breadCrumb, categoryId);
+			// Join but leave last portion off
+			for (int counter = 0; counter < parts.length - 1; counter++) {
+				if (counter > 0) {
+					previousBreadCrumb += " ";
+				}
+				previousBreadCrumb += parts[counter];
+			}
 
-        // response text exceeds 160 character limit send SMS
-        if (responseText.length() > 160) {
-            response.responseToSubscriber = "Request has been received. Please wait for SMS with response to your query.";
-            sendSMS("Grameen", "+" + request.msisdn, responseText);
-        }
-        else {
-            response.responseToSubscriber = responseText;
-        }
-        return response;
-    }
+			previousMenu = DatabaseHandler.getRequestedMenu(previousBreadCrumb,
+					displayedMenu.getCategoryId());
 
-    public void sendSMS(String sender, String recipient, String content) {
-        Message message = new Message("http://ckwapps.applab.org:8888/services/sendSms");
-        message.setSender(sender);
-        message.setRecipient(recipient);
-        message.setBody(content);
-        message.Send();
-    }
+			// Set the title
+			if (parts.length > 1) {
+				previousMenu
+						.setTitle(parts[parts.length - 1].replace("_", " "));
+			} else {
+				previousMenu.setTitle(DatabaseHandler.getCategoryNameFromId(
+						displayedMenu.getCategoryId()).replace("_", " "));
+			}
+
+			appResp.responseToSubscriber = previousMenu
+					.getMenuStringForDisplay();
+		}
+		DatabaseHandler.logRequest(request, previousMenu, isCompleted);
+		return appResp;
+	}
+
+	// Obtain content to format and send as SMS
+	private UssdResponse getContent(UssdRequest request, String breadCrumb,
+			Integer categoryId) throws Exception {
+		UssdResponse response = new UssdResponse();
+		response.isMenu = false;
+		String responseText = DatabaseHandler
+				.getContent(breadCrumb, categoryId);
+
+		// response text exceeds 160 character limit send SMS
+		if (responseText.length() > 160) {
+			response.responseToSubscriber = "Request has been received. Please wait for SMS with response to your query.";
+			sendSMS("Grameen", "+" + request.msisdn, responseText);
+		} else {
+			response.responseToSubscriber = responseText;
+		}
+		return response;
+	}
+
+	public void sendSMS(String sender, String recipient, String content) {
+		Message message = new Message(
+				"http://ckwapps.applab.org:8888/services/sendSms");
+		message.setSender(sender);
+		message.setRecipient(recipient);
+		message.setBody(content);
+		message.Send();
+	}
 
 }
