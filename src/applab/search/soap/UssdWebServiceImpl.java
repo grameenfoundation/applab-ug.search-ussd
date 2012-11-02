@@ -38,12 +38,13 @@ public class UssdWebServiceImpl implements UssdWebServiceInterface {
 			.getLogger(UssdWebServiceImpl.class.getName());
 
 	private final static String ROOT_USSD_MENU = "*178#";
+	private final static int FHI_CONTENT_CATEGORY_ID = 80;
+	private final static int BSI_CONTENT_CATEGORY_ID = 77;
 
 	@Resource
 	private WebServiceContext context;
 	public int isCompleted = 0;
 	public int isTopLevel = 0;
-	public int BSICategoryId = 77;
 
 	@Override
 	public UssdResponse handleUSSDRequest(UssdRequest request) {
@@ -119,6 +120,7 @@ public class UssdWebServiceImpl implements UssdWebServiceInterface {
 		if (request.userInput.equals(ROOT_USSD_MENU)) {
 			rootMenu.addItem("Farmer Services");
 			rootMenu.addItem("Budget Services");
+			rootMenu.addItem("Family Health Services");
 			rootMenu.setTitle("Grameen Services");
 		}
 
@@ -146,8 +148,13 @@ public class UssdWebServiceImpl implements UssdWebServiceInterface {
 					isTopLevel = 0;
 				} else if (selectedItem.equalsIgnoreCase("Budget Services")) {
 					rootMenu = DatabaseHandler
-							.createOtherRootMenu(BSICategoryId);
+							.createOtherRootMenu(BSI_CONTENT_CATEGORY_ID);
 					rootMenu.setTitle("Budget Services");
+					isTopLevel = 0;
+				} else if (selectedItem.equalsIgnoreCase("Family Health Services")) {
+					rootMenu = DatabaseHandler
+							.createOtherRootMenu(FHI_CONTENT_CATEGORY_ID);
+					rootMenu.setTitle("Family Health Services");
 					isTopLevel = 0;
 				}
 
@@ -298,10 +305,17 @@ public class UssdWebServiceImpl implements UssdWebServiceInterface {
 		if (breadCrumb == "") {
 
 			if (displayedMenu.getCategoryId() != 0) {
-				if (displayedMenu.getCategoryId() == BSICategoryId) {
+				if (displayedMenu.getCategoryId() == BSI_CONTENT_CATEGORY_ID) {
 					previousMenu = DatabaseHandler
-							.createOtherRootMenu(BSICategoryId);
+							.createOtherRootMenu(BSI_CONTENT_CATEGORY_ID);
 					previousMenu.setTitle("Budget Services");
+					isTopLevel = 0;
+					appResp.responseToSubscriber = previousMenu
+							.getMenuStringForDisplay();
+				} else if (displayedMenu.getCategoryId() == FHI_CONTENT_CATEGORY_ID) {
+					previousMenu = DatabaseHandler
+							.createOtherRootMenu(FHI_CONTENT_CATEGORY_ID);
+					previousMenu.setTitle("Family Health Services");
 					isTopLevel = 0;
 					appResp.responseToSubscriber = previousMenu
 							.getMenuStringForDisplay();
