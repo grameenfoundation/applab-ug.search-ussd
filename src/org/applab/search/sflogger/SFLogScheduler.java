@@ -2,15 +2,11 @@ package org.applab.search.sflogger;
 
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -23,6 +19,7 @@ import javax.xml.rpc.ServiceException;
 
 import org.applab.search.soap.DatabaseHandler;
 import org.applab.search.soap.UssdWebServiceImpl;
+
 
 import applab.server.SalesforceProxy;
 
@@ -43,8 +40,9 @@ public class SFLogScheduler {
 	public static void main(String[] args) throws ServiceException, IOException {
 		try {
 			logToSalesforce();
-			logger.info("Running USSD Searches to Salesforce Logger..");
+			logger.info("I am running..");
 		} catch (Exception e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -72,6 +70,12 @@ public class SFLogScheduler {
 							"databaseUsername", ""), Configuration.getConfig()
 							.getConfiguration("databasePassword", ""));
 
+			// connection =
+			// DatabaseHelpers.createConnection("jdbc:mysql://ckwapps.applab.org:3306/ycppquiz",
+			// Configuration.getConfig().getConfiguration(
+			// "databaseUsername", ""), Configuration.getConfig()
+			// .getConfiguration("databasePassword", ""));
+			//
 			System.out.println("Database connection established");
 
 			// prepare select statement
@@ -87,29 +91,33 @@ public class SFLogScheduler {
 
 	@SuppressWarnings("unused")
 	public static void logToSalesforce() throws Exception {
-		
+		logger.info("Log USSD Searches to Salesforce running..");
 		CreateSearchLogEntryServiceLocator serviceLocator = new CreateSearchLogEntryServiceLocator();
 		CreateSearchLogEntryBindingStub serviceStub = (CreateSearchLogEntryBindingStub) serviceLocator
 				.getCreateSearchLogEntry();
 
 		// Use soap api to login and get session info
 		SforceServiceLocator soapServiceLocator = new SforceServiceLocator();
-		soapServiceLocator.setSoapEndpointAddress(Configuration.getConfig()
-				.getConfiguration("salesforceAddress", ""));
-
+		// soapServiceLocator.setSoapEndpointAddress(Configuration.getConfig()
+		// .getConfiguration("salesforceAddress", ""));
+		logger.info("setting endpointaddress");
+		soapServiceLocator
+				.setSoapEndpointAddress("https://cs12.salesforce.com/services/Soap/c/18.0");
 		SoapBindingStub binding = (SoapBindingStub) soapServiceLocator
 				.getSoap();
-		LoginResult loginResult = binding.login(
-				Configuration.getConfig().getConfiguration(
-						"salesforceUsername", ""),
-				Configuration.getConfig().getConfiguration(
-						"salesforcePassword", "")
-						+ Configuration.getConfig().getConfiguration(
-								"salesforceToken", ""));
+		logger.info("login to salesforce");
+		// LoginResult loginResult = binding.login(
+		// Configuration.getConfig().getConfiguration(
+		// "salesforceUsername", ""),
+		// Configuration.getConfig().getConfiguration(
+		// "salesforcePassword", "")
+		// + Configuration.getConfig().getConfiguration(
+		// "salesforceToken", ""));
+		LoginResult loginResult = binding.login("crmapi@applab.org.ckwtest",
+				"yoteam20107DsJf1XPYI877Ria4bmlQMcIO");
 		SessionHeader sessionHeader = new SessionHeader(
 				loginResult.getSessionId());
 		logger.info("Share the session info with our webservice");
-
 		// Share the session info with our webservice
 		serviceStub.setHeader(
 				"http://soap.sforce.com/schemas/class/CreateSearchLogEntry",
@@ -131,11 +139,15 @@ public class SFLogScheduler {
 		CommandText
 				.append(" WHERE DATE_ADD(created_date, INTERVAL 120 second) < NOW()");
 		CommandText.append(" AND sf_logged = ?");
-		CommandText.append(" ORDER BY created_date DESC");
+		// CommandText.append(" ORDER BY created_date DESC limit 50");
+		CommandText.append(" ORDER BY bread_crumb DESC");
 
+		logger.info("build select query next");
 		PreparedStatement selectStatement = buildSelectQuery(CommandText);
 		selectStatement.setInt(1, 0);
+		logger.info("executing query next");
 		ResultSet result = selectStatement.executeQuery();
+		logger.info("query executed");
 		List<SearchLogEntry> searchLogEntriesList = new ArrayList<SearchLogEntry>();
 		Map<String, SearchLogEntry> transactionIdSearchLogEntryMap = new HashMap<String, SearchLogEntry>();
 
@@ -154,7 +166,7 @@ public class SFLogScheduler {
 
 				while (!s.contains(transactionId)) {
 					transactionIdCount++;
-
+					logger.info("TID:" + transactionId);
 					// Prepare to Log to SF
 					String msisdn = result.getString(2);
 					msisdn = msisdn.replace("256", "0");
@@ -190,7 +202,7 @@ public class SFLogScheduler {
 					}
 					try {
 
-						// Add searchLogEntry to List;
+						//Add searchLogEntry to List;
 						searchLogEntriesList.add(searchLogEntry);
 
 						// Add transactionId to set
@@ -199,33 +211,49 @@ public class SFLogScheduler {
 						transactionIdSearchLogEntryMap.put(transactionId,
 								searchLogEntry);
 
-						// Bundle 20 Entries per SF call
-						if (searchLogEntriesList.size() >= 20) {
+						if (searchLogEntriesList.size() >= 15) {
 							searchLogEntries = new SearchLogEntry[searchLogEntriesList
 									.size()];
 							searchLogEntriesList.toArray(searchLogEntries);
+
+							for (SearchLogEntry searchLogEntryCheck : searchLogEntries) {
+								logger.info(searchLogEntryCheck.getMsisdn()
+										+ ":"
+										+ searchLogEntryCheck.getCategory()
+										+ "," + searchLogEntryCheck.getQuery()
+										+ ","
+										+ searchLogEntryCheck.getIsCompleted());
+							}
 
 							// Make SF entry
 							logger.info("Making a batch entry to SF..");
 							sfLogged = serviceStub
 									.createNewSearchLogEntries(searchLogEntries);
 
-							// Mark all successfully logged entries as logged
 							if (sfLogged == true) {
+								logger.info("SF LOGGING DONE!!!!!!!!!!!!!!!!!!!!!!!!!!");
+								logger.info("updating the batch entry to SF in ussd table..");
+
+								// Mark all logged entries as logged
 								StringBuilder updateCommandText = new StringBuilder();
 								updateCommandText.append("UPDATE ussd ");
 								updateCommandText.append("SET sf_logged = ?");
 								updateCommandText
 										.append("WHERE transaction_id = ?");
 
+								logger.info("Update sf_logged = 1");
 								PreparedStatement updateStatement = buildSelectQuery(updateCommandText);
 								updateStatement.setInt(1, 1);
-
+								// transactionId = iter.next();
 								for (String transactionIdToUpdate : transactionIdSearchLogEntryMap
 										.keySet()) {
 									updateStatement.setString(2,
 											transactionIdToUpdate);
+									// updateStatement.setString(2,
+									// transactionId);
 									updateStatement.executeUpdate();
+									logger.info("UPDATE FIN..... Update sf_logged = 1"
+											+ transactionIdToUpdate);
 								}
 							}
 							searchLogEntriesList.clear();
@@ -236,7 +264,7 @@ public class SFLogScheduler {
 					}
 				}
 			}
-			logger.info(transactionIdCount + " Distict transaction ids logged");
+			logger.info(transactionIdCount + "distict transaction ids logged");
 			connection.close();
 		}
 		connection.close();

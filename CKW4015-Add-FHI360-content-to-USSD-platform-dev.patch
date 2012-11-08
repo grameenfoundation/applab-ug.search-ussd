@@ -1,0 +1,11 @@
+diff --git a/src/applab/search/soap/UssdWebServiceImpl.java b/src/applab/search/soap/UssdWebServiceImpl.java
+index 7ed0bcf..2df0805 100644
+--- a/src/applab/search/soap/UssdWebServiceImpl.java
++++ b/src/applab/search/soap/UssdWebServiceImpl.java
+@@ -373,5 +373,4 @@
+ 		message.setBody(content);
+ 		message.Send();
+ 	}
+-
+ }
+\ No newline at end of file

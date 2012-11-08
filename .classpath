@@ -6,49 +6,44 @@
 			<attribute name="org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" value="Common Server"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="C:/Workspace/Common Server/WebContent/WEB-INF/lib/axis.jar">
+	<classpathentry kind="lib" path="E:/GitWorkspace/git/Common Server/WebContent/WEB-INF/lib/axis.jar">
 		<attributes>
 			<attribute name="org.eclipse.jst.component.dependency" value="../"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="C:/Workspace/Common Server/WebContent/WEB-INF/lib/commons-discovery-0.2.jar" sourcepath="/Common Server/WebContent/WEB-INF/lib/commons-discovery-0.2.jar">
+	<classpathentry kind="lib" path="E:/GitWorkspace/git/Common Server/WebContent/WEB-INF/lib/commons-discovery-0.2.jar" sourcepath="/Common Server/WebContent/WEB-INF/lib/commons-discovery-0.2.jar">
 		<attributes>
 			<attribute name="org.eclipse.jst.component.dependency" value="../"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="C:/Workspace/Common Server/WebContent/WEB-INF/lib/jaxrpc.jar">
+	<classpathentry kind="lib" path="E:/GitWorkspace/git/Common Server/WebContent/WEB-INF/lib/jaxrpc.jar">
 		<attributes>
 			<attribute name="org.eclipse.jst.component.dependency" value="../"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="C:/Workspace/Common Server/WebContent/WEB-INF/lib/saaj.jar">
+	<classpathentry kind="lib" path="E:/GitWorkspace/git/Common Server/WebContent/WEB-INF/lib/saaj.jar">
 		<attributes>
 			<attribute name="org.eclipse.jst.component.dependency" value="../"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="C:/Workspace/Common Server/WebContent/WEB-INF/lib/javax.wsdl_1.6.2.v201005080631.jar">
-		<attributes>
-			<attribute name="org.eclipse.jst.component.dependency" value="../"/>
-		</attributes>
-	</classpathentry>
-	<classpathentry kind="lib" path="C:/Workspace/Common Server/WebContent/WEB-INF/lib/commons-logging-1.0.4.jar">
+	<classpathentry kind="lib" path="E:/GitWorkspace/git/Common Server/WebContent/WEB-INF/lib/javax.wsdl_1.6.2.v201005080631.jar">
 		<attributes>
 			<attribute name="org.eclipse.jst.component.dependency" value="../"/>
 		</attributes>
 	</classpathentry>
 	<classpathentry kind="con" path="org.eclipse.jst.j2ee.internal.module.container"/>
-	<classpathentry kind="lib" path="C:/Workspace/Common Server/WebContent/WEB-INF/lib/activation.jar">
+	<classpathentry kind="lib" path="E:/GitWorkspace/git/Common Server/WebContent/WEB-INF/lib/activation.jar">
 		<attributes>
 			<attribute name="org.eclipse.jst.component.dependency" value="../"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="C:/Workspace/Common Server/WebContent/WEB-INF/lib/mail.jar">
+	<classpathentry kind="lib" path="E:/GitWorkspace/git/Common Server/WebContent/WEB-INF/lib/mail.jar">
 		<attributes>
 			<attribute name="org.eclipse.jst.component.dependency" value="../"/>
 		</attributes>
 	</classpathentry>
 	<classpathentry kind="con" path="org.eclipse.jst.server.core.container/org.eclipse.jst.server.tomcat.runtimeTarget/Apache Tomcat v6.0"/>
-	<classpathentry kind="lib" path="/Common Server/WebContent/WEB-INF/lib/commons-discovery.jar"/>
+	<classpathentry kind="lib" path="E:/GitWorkspace/git/Common Server/WebContent/WEB-INF/lib/commons-discovery.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

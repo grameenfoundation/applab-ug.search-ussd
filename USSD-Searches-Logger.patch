@@ -1,0 +1,551 @@
+diff --git a/src/org/applab/search/sflogger/Configuration.java b/src/org/applab/search/sflogger/Configuration.java
+new file mode 100644
+index 0000000..0bf53aa
+--- /dev/null
++++ b/src/org/applab/search/sflogger/Configuration.java
+@@ -0,0 +1,175 @@
++package org.applab.search.sflogger;
++
++import java.io.File;
++import java.io.IOException;
++import java.util.ArrayList;
++import java.util.HashMap;
++import java.util.List;
++
++import javax.xml.parsers.DocumentBuilder;
++import javax.xml.parsers.DocumentBuilderFactory;
++import javax.xml.parsers.ParserConfigurationException;
++
++import org.w3c.dom.CharacterData;
++import org.w3c.dom.Document;
++import org.w3c.dom.Element;
++import org.w3c.dom.Node;
++import org.xml.sax.SAXException;
++
++/**
++ * Class to access the configuration file. Parses XML file to HashMap and then provides access methods. Copyright (C)
++ * 2012 Grameen Foundation
++ */
++public class Configuration {
++
++    private static Configuration singletonValue;
++
++    // Allows a different filepath to be used for a custom config
++    private String filePath;
++
++    // Tracker booelan to avoid parsing the config file multiple times
++    private boolean isParsed = false;
++
++    // Used to map single value configurations
++    private HashMap<String, String> configurationMap;
++
++    // Used to map multiple value configurations
++    private HashMap<String, List<String>> configurationArrayMap;
++
++    /**
++     * Empty constructor as the work is done in the init proc
++     */
++    private Configuration() {
++        filePath = "conf/configuration.xml";
++    }
++
++    /**
++     * Create the singleton value and add default settings
++     */
++    public static Configuration getConfig() {
++        if (singletonValue == null) {
++            Configuration config = new Configuration();
++            config.configurationMap = new HashMap<String, String>();
++            config.configurationArrayMap = new HashMap<String, List<String>>();
++            singletonValue = config;
++        }
++        return singletonValue;
++
++    }
++
++    /**
++     * Change path to config file. Must be called before parseConfig to have any affect
++     * 
++     * @param filePath
++     *            - File path to config file
++     */
++    public static void setFilePath(String filePath) {
++        singletonValue.filePath = filePath;
++    }
++
++    /**
++     * Initiate the parsing of the config file. Reads in file and normalises it
++     */
++    public void parseConfig() throws ParserConfigurationException, SAXException, IOException {
++
++        if (!isParsed) {
++            File xmlFile = new File(singletonValue.filePath);
++            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
++            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
++            Document xmlDocument = dBuilder.parse(xmlFile);
++            xmlDocument.getDocumentElement().normalize();
++            Element rootNode = xmlDocument.getDocumentElement();
++            parseConfigXml(rootNode);
++            isParsed = true;
++        }
++    }
++
++    /**
++     * Identifies each config item element
++     */
++    private static void parseConfigXml(Element rootElement) {
++
++        for (Node childNode = rootElement.getFirstChild(); childNode != null; childNode = childNode.getNextSibling()) {
++            if (childNode.getNodeType() == Node.ELEMENT_NODE) {
++                if (childNode.getNodeName().equals("configItem")) {
++                    parseConfigItem((Element)childNode);
++                }
++            }
++        }
++    }
++
++    /**
++     * Parses each configItem element into its configName and configValue parts Adds config name value pair to pertinent
++     * config map
++     * 
++     * @param configElement
++     *            - The configItem element to be parsed
++     */
++    private static void parseConfigItem(Element configElement) {
++
++        String configName = null;
++        List<String> configValue = new ArrayList<String>();
++
++        for (Node childNode = configElement.getFirstChild(); childNode != null; childNode = childNode.getNextSibling()) {
++            if (childNode.getNodeType() == Node.ELEMENT_NODE) {
++                if (childNode.getNodeName().equals("configName")) {
++                    configName = parseCharacterData((Element)childNode);
++                }
++                if (childNode.getNodeName().equals("configValue")) {
++                    configValue.add(parseCharacterData((Element)childNode));
++                }
++            }
++        }
++        if (configName != null && configValue.size() == 1) {
++            singletonValue.configurationMap.put(configName, configValue.get(0));
++        }
++        else if (configName != null && configValue.size() > 1) {
++            singletonValue.configurationArrayMap.put(configName, configValue);
++        }
++    }
++
++    private static String parseCharacterData(Element element) {
++        Node child = element.getFirstChild();
++        if (child instanceof CharacterData) {
++            return ((CharacterData)child).getData();
++        }
++        return null;
++    }
++
++    /**
++     * Retrieve a config value
++     * 
++     * @param name
++     *            - The name of the config value required
++     * @param defaultValue
++     *            - value to be returned if config value is missing
++     * 
++     * @return - The config value matching the name or the default value if value is missing
++     */
++    public String getConfiguration(String name, String defaultValue) {
++        if (singletonValue.configurationMap.containsKey(name)) {
++            return singletonValue.configurationMap.get(name);
++        }
++        return defaultValue;
++    }
++
++    /**
++     * Retrieve a config value as a list
++     * 
++     * @param name
++     *            - The name of the config value required
++     * 
++     * @return - The config value matching the name or an empty list if it is missing
++     */
++    public List<String> getConfiguration(String name) {
++        if (singletonValue.configurationArrayMap.containsKey(name)) {
++            return singletonValue.configurationArrayMap.get(name);
++        }
++        String value = getConfiguration(name, "");
++        List<String> values = new ArrayList<String>();
++        if (!value.equalsIgnoreCase("")) {
++            values.add(value);
++        }
++        return values;
++    }
++}
+diff --git a/src/org/applab/search/sflogger/DatabaseHelpers.java b/src/org/applab/search/sflogger/DatabaseHelpers.java
+new file mode 100644
+index 0000000..d7dafe5
+--- /dev/null
++++ b/src/org/applab/search/sflogger/DatabaseHelpers.java
+@@ -0,0 +1,112 @@
++package org.applab.search.sflogger;
++
++import java.sql.Connection;
++import java.sql.DriverManager;
++import java.sql.PreparedStatement;
++import java.sql.ResultSet;
++import java.sql.SQLException;
++import java.sql.Statement;
++
++/**
++ * Class to deal with database interactions
++ * 
++ * Copyright (C) 2012 Grameen Foundation
++ */
++public class DatabaseHelpers {
++
++	final static String JDBC_DRIVER = "com.mysql.jdbc.Driver";
++	private static Connection connection;
++
++	/**
++	 * Constructor will create a connection to the DB. This will need to be
++	 * improved to use connection pooling and non-persistent connections
++	 * 
++	 * @param databaseName
++	 *            - The name of the database being used
++	 * @param username
++	 *            - The username for the database
++	 * @param password
++	 *            - The password for the database
++	 * @return 
++	 */
++	public static Connection createConnection(String url, String username,
++			String password) throws ClassNotFoundException, SQLException {
++
++		// Make sure the JDBC driver is loaded into memory
++		Class.forName(JDBC_DRIVER);
++		try {
++			connection = DriverManager.getConnection(url, username, password);
++		} catch (Exception e) {
++			e.printStackTrace();
++		}
++		return connection;
++	}
++
++	public static void closeConnection() throws SQLException {
++		connection.close();
++	}
++
++	public static Boolean checkConnection() throws SQLException {
++		return connection.isClosed();
++	}
++
++	public static PreparedStatement getPreparedStatement(String query)
++			throws SQLException {
++		return connection.prepareStatement(query);
++	}
++
++	/**
++	 * Execute a select statement.
++	 * 
++	 * @param query
++	 *            - The query string for the select statement
++	 * 
++	 * @return - The result set
++	 */
++	public static ResultSet executeSelectQuery(PreparedStatement statement)
++			throws SQLException {
++		statement.executeQuery();
++		return statement.getResultSet();
++	}
++
++	/**
++	 * Executes a select query that returns a ResultSet
++	 * 
++	 * @param query
++	 * @return
++	 * @throws SQLException
++	 */
++	public static ResultSet executeSelectQuery(String query)
++			throws SQLException {
++		Statement selectStatement = connection.createStatement();
++		selectStatement.executeQuery(query);
++		return selectStatement.getResultSet();
++	}
++
++	/**
++	 * Get the number of rows that are in the result set. Returns the result set
++	 * with the cursor on the first row.
++	 * 
++	 * @param rs
++	 *            - The result set
++	 * 
++	 * @return - The number of rows in the result set
++	 */
++	public static int getNumberOfRows(ResultSet resultSet) {
++
++		int totalRow = 0;
++		try {
++			boolean hasRows = resultSet.last();
++
++			// Do we have any rows in the result set
++			if (hasRows) {
++				totalRow = resultSet.getRow();
++				resultSet.first();
++			}
++		} catch (Exception e) {
++			return totalRow;
++		}
++		return totalRow;
++	}
++
++}
+\ No newline at end of file
+diff --git a/src/org/applab/search/sflogger/SFLogScheduler.java b/src/org/applab/search/sflogger/SFLogScheduler.java
+new file mode 100644
+index 0000000..da9bb36
+--- /dev/null
++++ b/src/org/applab/search/sflogger/SFLogScheduler.java
+@@ -0,0 +1,244 @@
++package org.applab.search.sflogger;
++
++import java.io.IOException;
++import java.sql.Connection;
++import java.sql.DriverManager;
++import java.sql.PreparedStatement;
++import java.sql.ResultSet;
++import java.sql.SQLException;
++import java.text.DateFormat;
++import java.text.SimpleDateFormat;
++import java.util.ArrayList;
++import java.util.Calendar;
++import java.util.Date;
++import java.util.HashMap;
++import java.util.HashSet;
++import java.util.Iterator;
++import java.util.List;
++import java.util.Map;
++import java.util.Set;
++import java.util.logging.Logger;
++
++import javax.xml.rpc.ServiceException;
++
++import org.applab.search.soap.DatabaseHandler;
++import org.applab.search.soap.UssdWebServiceImpl;
++
++import applab.server.SalesforceProxy;
++
++import com.sforce.soap.enterprise.LoginResult;
++import com.sforce.soap.enterprise.SessionHeader;
++import com.sforce.soap.enterprise.SforceServiceLocator;
++import com.sforce.soap.enterprise.SoapBindingStub;
++import com.sforce.soap.schemas._class.CreateSearchLogEntry.CreateSearchLogEntryBindingStub;
++import com.sforce.soap.schemas._class.CreateSearchLogEntry.CreateSearchLogEntryServiceLocator;
++import com.sforce.soap.schemas._class.CreateSearchLogEntry.SearchLogEntry;
++
++public class SFLogScheduler {
++
++	private static Connection connection = null;
++	private final static Logger logger = Logger
++			.getLogger(UssdWebServiceImpl.class.getName());
++
++	public static void main(String[] args) throws ServiceException, IOException {
++		try {
++			logToSalesforce();
++			logger.info("Running USSD Searches to Salesforce Logger..");
++		} catch (Exception e) {
++			e.printStackTrace();
++		}
++	}
++
++	/**
++	 * Build queries and db connection and returns prepared statements
++	 * 
++	 * @param commandText
++	 * @return
++	 * @throws ClassNotFoundException
++	 *             , SQLException
++	 * 
++	 */
++
++	static PreparedStatement buildSelectQuery(StringBuilder commandText)
++			throws ClassNotFoundException, SQLException {
++		PreparedStatement selectStatement = null;
++		try {
++
++			Configuration.getConfig().parseConfig();
++			connection = DatabaseHelpers.createConnection(
++					Configuration.getConfig().getConfiguration("databaseURL",
++							""),
++					Configuration.getConfig().getConfiguration(
++							"databaseUsername", ""), Configuration.getConfig()
++							.getConfiguration("databasePassword", ""));
++
++			System.out.println("Database connection established");
++
++			// prepare select statement
++			selectStatement = connection.prepareStatement(commandText
++					.toString());
++		} catch (Exception e) {
++
++			System.err.println("Cannot connect to database server");
++			e.printStackTrace();
++		}
++		return selectStatement;
++	}
++
++	@SuppressWarnings("unused")
++	public static void logToSalesforce() throws Exception {
++		
++		CreateSearchLogEntryServiceLocator serviceLocator = new CreateSearchLogEntryServiceLocator();
++		CreateSearchLogEntryBindingStub serviceStub = (CreateSearchLogEntryBindingStub) serviceLocator
++				.getCreateSearchLogEntry();
++
++		// Use soap api to login and get session info
++		SforceServiceLocator soapServiceLocator = new SforceServiceLocator();
++		soapServiceLocator.setSoapEndpointAddress(Configuration.getConfig()
++				.getConfiguration("salesforceAddress", ""));
++
++		SoapBindingStub binding = (SoapBindingStub) soapServiceLocator
++				.getSoap();
++		LoginResult loginResult = binding.login(
++				Configuration.getConfig().getConfiguration(
++						"salesforceUsername", ""),
++				Configuration.getConfig().getConfiguration(
++						"salesforcePassword", "")
++						+ Configuration.getConfig().getConfiguration(
++								"salesforceToken", ""));
++		SessionHeader sessionHeader = new SessionHeader(
++				loginResult.getSessionId());
++		logger.info("Share the session info with our webservice");
++
++		// Share the session info with our webservice
++		serviceStub.setHeader(
++				"http://soap.sforce.com/schemas/class/CreateSearchLogEntry",
++				"SessionHeader", sessionHeader);
++
++		Set<String> s = new HashSet<String>();
++		Iterator<String> iter = s.iterator();
++		String transactionId;
++		SearchLogEntry searchLogEntry = new SearchLogEntry();
++		int transactionIdCount = 0;
++
++		// Prepare select statement to pick transaction_ids from table
++		StringBuilder CommandText = new StringBuilder();
++		CommandText.append("SELECT transaction_id");
++		CommandText.append(", msisdn, bread_crumb");
++		CommandText.append(", category_id, menu_content");
++		CommandText.append(", created_date, iscompleted");
++		CommandText.append(" FROM ussd");
++		CommandText
++				.append(" WHERE DATE_ADD(created_date, INTERVAL 120 second) < NOW()");
++		CommandText.append(" AND sf_logged = ?");
++		CommandText.append(" ORDER BY created_date DESC");
++
++		PreparedStatement selectStatement = buildSelectQuery(CommandText);
++		selectStatement.setInt(1, 0);
++		ResultSet result = selectStatement.executeQuery();
++		List<SearchLogEntry> searchLogEntriesList = new ArrayList<SearchLogEntry>();
++		Map<String, SearchLogEntry> transactionIdSearchLogEntryMap = new HashMap<String, SearchLogEntry>();
++
++		SearchLogEntry searchLogEntries[] = null;
++
++		boolean sfLogged = false;
++
++		if (result.next()) {
++
++			// Guarantees the topmost pick which is the most recent entry for
++			// any transaction
++			result.first();
++			while (result.next()) {
++
++				transactionId = result.getString(1);
++
++				while (!s.contains(transactionId)) {
++					transactionIdCount++;
++
++					// Prepare to Log to SF
++					String msisdn = result.getString(2);
++					msisdn = msisdn.replace("256", "0");
++					String content = null;
++					content = DatabaseHandler.getContent(result.getString(3),
++							result.getInt(4));
++					String category = null;
++					category = DatabaseHandler.getCategoryNameFromId(result
++							.getInt(4));
++					String submissionTime = null;
++					submissionTime = result.getString(6);
++					String keyword = null;
++					keyword = result.getString(3);
++
++					// Save record to SF
++					searchLogEntry.setMsisdn(msisdn);
++					searchLogEntry.setCategory(category);
++					searchLogEntry.setContent(content);
++					searchLogEntry.setSubmissionTime(submissionTime);
++					Calendar calendar = Calendar.getInstance();
++					String serverEntryTime = SalesforceProxy
++							.formatDateTime(calendar.getTime());
++					searchLogEntry.setServerEntryTime(serverEntryTime);
++					searchLogEntry.setQuery(keyword);
++					searchLogEntry.setIsUssd(true);
++
++					// If process was completed set iscompleted to true if not
++					// then false
++					if (result.getInt(7) == 1) {
++						searchLogEntry.setIsCompleted(true);
++					} else {
++						searchLogEntry.setIsCompleted(false);
++					}
++					try {
++
++						// Add searchLogEntry to List;
++						searchLogEntriesList.add(searchLogEntry);
++
++						// Add transactionId to set
++						s.add(transactionId);
++
++						transactionIdSearchLogEntryMap.put(transactionId,
++								searchLogEntry);
++
++						// Bundle 20 Entries per SF call
++						if (searchLogEntriesList.size() >= 20) {
++							searchLogEntries = new SearchLogEntry[searchLogEntriesList
++									.size()];
++							searchLogEntriesList.toArray(searchLogEntries);
++
++							// Make SF entry
++							logger.info("Making a batch entry to SF..");
++							sfLogged = serviceStub
++									.createNewSearchLogEntries(searchLogEntries);
++
++							// Mark all successfully logged entries as logged
++							if (sfLogged == true) {
++								StringBuilder updateCommandText = new StringBuilder();
++								updateCommandText.append("UPDATE ussd ");
++								updateCommandText.append("SET sf_logged = ?");
++								updateCommandText
++										.append("WHERE transaction_id = ?");
++
++								PreparedStatement updateStatement = buildSelectQuery(updateCommandText);
++								updateStatement.setInt(1, 1);
++
++								for (String transactionIdToUpdate : transactionIdSearchLogEntryMap
++										.keySet()) {
++									updateStatement.setString(2,
++											transactionIdToUpdate);
++									updateStatement.executeUpdate();
++								}
++							}
++							searchLogEntriesList.clear();
++							transactionIdSearchLogEntryMap.clear();
++						}
++					} catch (Exception e) {
++						e.printStackTrace();
++					}
++				}
++			}
++			logger.info(transactionIdCount + " Distict transaction ids logged");
++			connection.close();
++		}
++		connection.close();
++	}
++}
+\ No newline at end of file
