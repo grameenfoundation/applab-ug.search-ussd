@@ -255,11 +255,10 @@ public class DatabaseHandler {
 	public static UssdMenu createOtherRootMenu(Integer categoryId)
 			throws Exception {
 		StringBuilder commandText = new StringBuilder();
-		commandText.append("SELECT DISTINCT(keyword.categoryId)");
-		commandText.append(", category.name AS name");
-		commandText.append(" FROM category ");
+		commandText.append("SELECT keyword AS name");
+		commandText.append(" FROM keyword ");
 		commandText
-				.append(" INNER JOIN keyword ON keyword.categoryId=category.id ");
+				.append(" INNER JOIN category ON keyword.categoryId=category.id ");
 		commandText.append(" WHERE category.isdeleted = ? ");
 		commandText.append(" AND category.isussd = ? ");
 		commandText.append(" AND category.id = ? ");
@@ -274,16 +273,19 @@ public class DatabaseHandler {
 
 		ResultSet rootMenuResource = selectStatement.executeQuery();
 		UssdMenu rootMenu = new UssdMenu();
-		try {
 
-			// Populate the root menu
+		try {
 			while (rootMenuResource.next()) {
-				rootMenu.addItem(rootMenuResource.getString(2));
+				String[] keywordParts = rootMenuResource.getString(1)
+						.split(" ");
+				String keyword = keywordParts[0].replace("_", " ");
+				rootMenu.addItem(keyword);
 			}
 		} catch (Exception e) {
 			logger.warning(e.getMessage());
 			e.printStackTrace();
 		}
+		rootMenu.setCategoryId(categoryId);
 		connection.close();
 		return rootMenu;
 	}
@@ -384,7 +386,7 @@ public class DatabaseHandler {
 		ResultSet transactionIdResult = tIdSelectStatement.executeQuery();
 		if (transactionIdResult.next()) {
 			connection.close();
-			logToSalesforce();
+			// logToSalesforce();
 		}
 	}
 

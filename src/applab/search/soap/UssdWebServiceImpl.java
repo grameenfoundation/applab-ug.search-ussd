@@ -120,7 +120,7 @@ public class UssdWebServiceImpl implements UssdWebServiceInterface {
 		if (request.userInput.equals(ROOT_USSD_MENU)) {
 			rootMenu.addItem("Farmer Services");
 			rootMenu.addItem("Budget Services");
-			rootMenu.addItem("Family Health Services");
+			rootMenu.addItem("USAID Community Connector");
 			rootMenu.setTitle("Grameen Services");
 		}
 
@@ -151,10 +151,10 @@ public class UssdWebServiceImpl implements UssdWebServiceInterface {
 							.createOtherRootMenu(BSI_CONTENT_CATEGORY_ID);
 					rootMenu.setTitle("Budget Services");
 					isTopLevel = 0;
-				} else if (selectedItem.equalsIgnoreCase("Family Health Services")) {
+				} else if (selectedItem.equalsIgnoreCase("USAID Community Connector")) {
 					rootMenu = DatabaseHandler
 							.createOtherRootMenu(FHI_CONTENT_CATEGORY_ID);
-					rootMenu.setTitle("Family Health Services");
+					rootMenu.setTitle("USAID Community Connector");
 					isTopLevel = 0;
 				}
 
@@ -166,8 +166,7 @@ public class UssdWebServiceImpl implements UssdWebServiceInterface {
 			} else {
 
 				// This was the first menu, so we get the categoryId from the
-				// user's
-				// input
+				// user's input
 				selectedItem = selectedItem.replace(" ", "_");
 				categoryId = DatabaseHandler
 						.getCategoryIdFromName(selectedItem);
@@ -315,7 +314,7 @@ public class UssdWebServiceImpl implements UssdWebServiceInterface {
 				} else if (displayedMenu.getCategoryId() == FHI_CONTENT_CATEGORY_ID) {
 					previousMenu = DatabaseHandler
 							.createOtherRootMenu(FHI_CONTENT_CATEGORY_ID);
-					previousMenu.setTitle("Family Health Services");
+					previousMenu.setTitle("USAID Community Connector");
 					isTopLevel = 0;
 					appResp.responseToSubscriber = previousMenu
 							.getMenuStringForDisplay();
