@@ -262,7 +262,7 @@ public class DatabaseHandler {
 		commandText.append(" WHERE category.isdeleted = ? ");
 		commandText.append(" AND category.isussd = ? ");
 		commandText.append(" AND category.id = ? ");
-		commandText.append(" ORDER BY category.name ASC");
+		commandText.append(" ORDER BY keyword ASC");
 
 		PreparedStatement selectStatement = buildSelectQuery(commandText);
 
@@ -274,12 +274,18 @@ public class DatabaseHandler {
 		ResultSet rootMenuResource = selectStatement.executeQuery();
 		UssdMenu rootMenu = new UssdMenu();
 
+		Set<String> checkUniqueSet = new HashSet<String>();
+
 		try {
 			while (rootMenuResource.next()) {
 				String[] keywordParts = rootMenuResource.getString(1)
 						.split(" ");
-				String keyword = keywordParts[0].replace("_", " ");
-				rootMenu.addItem(keyword);
+				String keyword = keywordParts[0].trim().replace("_", " ");
+				
+				//Make sure we get a unique entry to the menu
+				if (checkUniqueSet.add(keyword) != false) {
+					rootMenu.addItem(keyword);
+				}
 			}
 		} catch (Exception e) {
 			logger.warning(e.getMessage());
